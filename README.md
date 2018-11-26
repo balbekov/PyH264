@@ -6,12 +6,12 @@ This uses quite suboptimal data structures (for example, each macroblock is an o
 
 What's supported:
 
-*Fixed 16x16 macroblocks
-*Quantization, with configurable Qp
-*Intra frame compression
+* Fixed 16x16 macroblocks
+* Quantization, with configurable Qp
+* Intra frame compression
 
 What's currently not supported:
-*Inter frame compression
-*I-frames
-*Motion prediction
-*Transport stream generation (bitmap only)
+* Inter frame compression
+* I-frames
+* Motion prediction
+* Transport stream generation (bitmap only)
