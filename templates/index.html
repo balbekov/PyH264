@@ -414,6 +414,54 @@
             justify-content: center;
         }
 
+        .pipeline-step {
+            position: relative;
+            cursor: help;
+        }
+
+        .pipeline-step .tooltip {
+            position: absolute;
+            bottom: calc(100% + 12px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 260px;
+            padding: 1rem;
+            background: var(--bg-deep);
+            border: 1px solid var(--accent-violet);
+            border-radius: 10px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 100;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+        }
+
+        .pipeline-step .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 8px solid transparent;
+            border-top-color: var(--accent-violet);
+        }
+
+        .pipeline-step .tooltip strong {
+            display: block;
+            color: var(--accent-violet);
+            margin-bottom: 0.4rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .pipeline-step:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
         .hierarchy {
             display: flex;
             gap: 0.75rem;
@@ -688,12 +736,48 @@
                 <div class="architecture">
                     <h3>Encoding Pipeline</h3>
                     <div class="pipeline">
-                        <div class="pipeline-step"><span class="num">1</span>Load</div>
-                        <div class="pipeline-step"><span class="num">2</span>Partition</div>
-                        <div class="pipeline-step"><span class="num">3</span>Predict</div>
-                        <div class="pipeline-step"><span class="num">4</span>DCT</div>
-                        <div class="pipeline-step"><span class="num">5</span>Quantize</div>
-                        <div class="pipeline-step"><span class="num">6</span>Entropy Code</div>
+                        <div class="pipeline-step">
+                            <span class="num">1</span>Load
+                            <div class="tooltip">
+                                <strong>Load</strong>
+                                Parse input image or Y4M video file. Convert to grayscale (Y channel) and pad dimensions to multiples of 16 for macroblock alignment.
+                            </div>
+                        </div>
+                        <div class="pipeline-step">
+                            <span class="num">2</span>Partition
+                            <div class="tooltip">
+                                <strong>Partition</strong>
+                                Split the frame into a hierarchy: Slices (rows of 16px) → MacroBlocks (16×16 pixels) → TransformBlocks (4×4 pixels). Each frame contains 16 transform blocks per macroblock.
+                            </div>
+                        </div>
+                        <div class="pipeline-step">
+                            <span class="num">3</span>Predict
+                            <div class="tooltip">
+                                <strong>Intra Prediction</strong>
+                                Predict pixel values using neighboring blocks. Modes: DC (average), Horizontal (copy left edge), Vertical (copy top edge). Encode only the residual (difference) to save bits.
+                            </div>
+                        </div>
+                        <div class="pipeline-step">
+                            <span class="num">4</span>DCT
+                            <div class="tooltip">
+                                <strong>Discrete Cosine Transform</strong>
+                                Convert 4×4 spatial blocks to frequency domain. Energy concentrates in top-left (low frequency) coefficients. Similar to JPEG compression — exploits the fact that images have smooth regions.
+                            </div>
+                        </div>
+                        <div class="pipeline-step">
+                            <span class="num">5</span>Quantize
+                            <div class="tooltip">
+                                <strong>Quantization</strong>
+                                Divide DCT coefficients by a quantization matrix and round. High-frequency coefficients (bottom-right) are divided by larger values, often becoming zero. This is the lossy step — controls quality vs size tradeoff.
+                            </div>
+                        </div>
+                        <div class="pipeline-step">
+                            <span class="num">6</span>Entropy Code
+                            <div class="tooltip">
+                                <strong>Exp-Golomb VLC</strong>
+                                Variable-length coding: small values get short codes, large values get longer codes. Zeros (common after quantization) encode very efficiently. Produces the final compressed bitstream.
+                            </div>
+                        </div>
                     </div>
                     <h3>Hierarchy</h3>
                     <div class="hierarchy">
