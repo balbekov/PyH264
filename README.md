@@ -11,7 +11,9 @@ This implementation prioritizes clarity over performance, making it ideal for:
 ## Features
 
 ### Supported
-- 16x16 macroblocks with 4x4 transform blocks
+- Configurable macroblock sizes (8x8, 16x16, 32x32)
+- Configurable transform block sizes (4x4, 8x8)
+- Web-based GUI dashboard for interactive encoding
 - DCT (Discrete Cosine Transform) and inverse DCT
 - Quantization with configurable Qp
 - Intra-frame prediction (DC, Horizontal, Vertical modes)
@@ -61,6 +63,40 @@ python -m h264 info image.png
 - **Images**: JPEG, PNG, BMP, GIF, TIFF
 - **Video**: YUV4MPEG2 (.y4m)
 
+## Web GUI
+
+The project includes an interactive web dashboard for visualizing the H.264 encoding process.
+
+### Running the GUI
+
+```bash
+# Activate virtual environment
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Start the Flask server
+python app.py
+```
+
+Then open http://127.0.0.1:5000 in your browser.
+
+### GUI Features
+
+- **Image Upload**: Drag and drop or browse to upload any image
+- **Test Patterns**: Generate gradient, checkerboard, or circle patterns
+- **Encoding Parameters**:
+  - **QP (0-51)**: Quantization parameter - lower values = higher quality, larger files
+  - **MB Size (8/16/32)**: Macroblock size in pixels
+  - **TB Size (4/8)**: Transform block size in pixels
+- **Live Visualization**:
+  - Original image
+  - Reconstructed image (after encode/decode)
+  - Difference image (4× amplified)
+  - CTU Structure (macroblock and transform block grid overlay)
+- **Statistics**: Compression ratio, bits per pixel, PSNR, encode time
+- **Zoom**: Hover over images to see pixel-level detail
+
+Parameters automatically re-encode when changed, allowing real-time exploration of quality vs compression tradeoffs.
+
 ## Python API
 
 ```python
@@ -93,6 +129,10 @@ encoder.show_frame(0)
 
 ```
 PyH264/
+├── app.py               # Flask web GUI server
+├── templates/
+│   └── index.html       # Web dashboard UI
+├── static/uploads/      # Uploaded images (gitignored)
 ├── h264/
 │   ├── H264.py          # Main encoder/decoder class
 │   ├── Frame.py         # Frame container (collection of slices)
