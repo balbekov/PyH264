@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyH264 Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0c10;
+            --bg-surface: #12151c;
+            --bg-elevated: #1a1e28;
+            --border: #2a303d;
+            --text-primary: #e4e8f0;
+            --text-secondary: #8892a6;
+            --text-muted: #5a6377;
+            --accent-cyan: #22d3ee;
+            --accent-lime: #a3e635;
+            --accent-amber: #fbbf24;
+            --accent-rose: #fb7185;
+            --accent-violet: #a78bfa;
+            --glow-cyan: rgba(34, 211, 238, 0.15);
+            --glow-lime: rgba(163, 230, 53, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Subtle grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header */
+        header {
+            padding: 2rem 3rem;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, var(--bg-surface) 0%, transparent 100%);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--bg-deep);
+        }
+
+        .logo-text h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-text p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        /* Main layout */
+        main {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            min-height: calc(100vh - 100px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            padding: 2rem;
+            border-right: 1px solid var(--border);
+            background: var(--bg-surface);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .panel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        .panel-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        /* Upload area */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent-cyan);
+            background: var(--glow-cyan);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-lime));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--bg-deep);
+        }
+
+        .upload-zone p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .upload-zone span {
+            color: var(--accent-cyan);
+            font-weight: 500;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Pattern buttons */
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+
+        .pattern-btn {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .pattern-btn:hover {
+            border-color: var(--accent-lime);
+            background: var(--glow-lime);
+        }
+
+        .pattern-btn .icon {
+            font-size: 1.4rem;
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+
+        /* Size controls */
+        .size-controls {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .size-input {
+            flex: 1;
+        }
+
+        .size-input label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .size-input input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .size-input input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        /* Content area */
+        .content {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .stat-card.cyan::before { background: var(--accent-cyan); }
+        .stat-card.lime::before { background: var(--accent-lime); }
+        .stat-card.amber::before { background: var(--accent-amber); }
+        .stat-card.rose::before { background: var(--accent-rose); }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        .stat-card.cyan .stat-value { color: var(--accent-cyan); }
+        .stat-card.lime .stat-value { color: var(--accent-lime); }
+        .stat-card.amber .stat-value { color: var(--accent-amber); }
+        .stat-card.rose .stat-value { color: var(--accent-rose); }
+
+        .stat-unit {
+            font-size: 0.85rem;
+            font-weight: 400;
+            opacity: 0.7;
+        }
+
+        /* Image comparison */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .image-panel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .image-panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .image-panel-header .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .image-panel-header .dot.cyan { background: var(--accent-cyan); }
+        .image-panel-header .dot.lime { background: var(--accent-lime); }
+        .image-panel-header .dot.amber { background: var(--accent-amber); }
+
+        .image-panel-header span {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .image-container {
+            padding: 1rem;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: repeating-conic-gradient(var(--bg-surface) 0% 25%, var(--bg-deep) 0% 50%) 
+                        50% / 16px 16px;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            max-height: 300px;
+            image-rendering: pixelated;
+            border-radius: 4px;
+        }
+
+        .image-placeholder {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 3rem;
+        }
+
+        /* Architecture diagram */
+        .architecture {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        .architecture h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+        }
+
+        .pipeline {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .pipeline-step {
+            padding: 0.6rem 1rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .pipeline-step .num {
+            width: 20px;
+            height: 20px;
+            background: var(--accent-violet);
+            color: var(--bg-deep);
+            border-radius: 50%;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hierarchy {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .hierarchy-item {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, var(--bg-surface), var(--bg-elevated));
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .hierarchy-arrow {
+            color: var(--text-muted);
+        }
+
+        /* Additional stats */
+        .detail-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .detail-stat {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .detail-stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .detail-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        /* Loading state */
+        .loading {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Welcome state */
+        .welcome {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .welcome h2 {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .welcome p {
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        /* Error state */
+        .error-msg {
+            background: rgba(251, 113, 133, 0.1);
+            border: 1px solid var(--accent-rose);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            color: var(--accent-rose);
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .error-msg.active {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <div class="logo-icon">H2</div>
+            <div class="logo-text">
+                <h1>PyH264</h1>
+                <p>Educational Video Codec Dashboard</p>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <aside class="sidebar">
+            <div class="panel">
+                <div class="panel-title">Upload Image</div>
+                <div class="upload-zone" id="upload-zone">
+                    <div class="upload-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                        </svg>
+                    </div>
+                    <p>Drop an image or <span>browse</span></p>
+                    <input type="file" id="file-input" accept="image/*">
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Test Patterns</div>
+                <div class="size-controls">
+                    <div class="size-input">
+                        <label>Width</label>
+                        <input type="number" id="pattern-width" value="64" min="16" max="256" step="16">
+                    </div>
+                    <div class="size-input">
+                        <label>Height</label>
+                        <input type="number" id="pattern-height" value="64" min="16" max="256" step="16">
+                    </div>
+                </div>
+                <div class="pattern-grid" style="margin-top: 1rem;">
+                    <button class="pattern-btn" data-pattern="gradient">
+                        <span class="icon">▤</span>
+                        Gradient
+                    </button>
+                    <button class="pattern-btn" data-pattern="checkerboard">
+                        <span class="icon">▦</span>
+                        Checker
+                    </button>
+                    <button class="pattern-btn" data-pattern="circles">
+                        <span class="icon">◎</span>
+                        Circle
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel" style="flex: 1;">
+                <div class="panel-title">Structure</div>
+                <div id="structure-info">
+                    <div class="detail-stat">
+                        <span class="detail-stat-label">Slices</span>
+                        <span class="detail-stat-value" id="stat-slices">—</span>
+                    </div>
+                    <div class="detail-stat" style="margin-top: 0.5rem;">
+                        <span class="detail-stat-label">Macroblocks</span>
+                        <span class="detail-stat-value" id="stat-macroblocks">—</span>
+                    </div>
+                    <div class="detail-stat" style="margin-top: 0.5rem;">
+                        <span class="detail-stat-label">Transform Blocks</span>
+                        <span class="detail-stat-value" id="stat-transforms">—</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="content">
+            <div class="error-msg" id="error-msg"></div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <span>Encoding frame...</span>
+            </div>
+
+            <div id="welcome-state" class="welcome">
+                <h2>Ready to encode</h2>
+                <p>Upload an image or select a test pattern to see the H.264 encoding pipeline in action.</p>
+            </div>
+
+            <div id="results" style="display: none;">
+                <div class="stats-bar">
+                    <div class="stat-card cyan">
+                        <div class="stat-label">Dimensions</div>
+                        <div class="stat-value" id="stat-dims">—</div>
+                    </div>
+                    <div class="stat-card lime">
+                        <div class="stat-label">Compression</div>
+                        <div class="stat-value"><span id="stat-ratio">—</span><span class="stat-unit">×</span></div>
+                    </div>
+                    <div class="stat-card amber">
+                        <div class="stat-label">Bits/Pixel</div>
+                        <div class="stat-value" id="stat-bpp">—</div>
+                    </div>
+                    <div class="stat-card rose">
+                        <div class="stat-label">PSNR</div>
+                        <div class="stat-value"><span id="stat-psnr">—</span><span class="stat-unit">dB</span></div>
+                    </div>
+                </div>
+
+                <div class="comparison-grid">
+                    <div class="image-panel">
+                        <div class="image-panel-header">
+                            <span class="dot cyan"></span>
+                            <span>Original</span>
+                        </div>
+                        <div class="image-container">
+                            <img id="img-original" src="" alt="Original image">
+                        </div>
+                    </div>
+                    <div class="image-panel">
+                        <div class="image-panel-header">
+                            <span class="dot lime"></span>
+                            <span>Reconstructed</span>
+                        </div>
+                        <div class="image-container">
+                            <img id="img-reconstructed" src="" alt="Reconstructed image">
+                        </div>
+                    </div>
+                    <div class="image-panel">
+                        <div class="image-panel-header">
+                            <span class="dot amber"></span>
+                            <span>Difference (4× amplified)</span>
+                        </div>
+                        <div class="image-container">
+                            <img id="img-difference" src="" alt="Difference image">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="architecture">
+                    <h3>Encoding Pipeline</h3>
+                    <div class="pipeline">
+                        <div class="pipeline-step"><span class="num">1</span>Load</div>
+                        <div class="pipeline-step"><span class="num">2</span>Partition</div>
+                        <div class="pipeline-step"><span class="num">3</span>Predict</div>
+                        <div class="pipeline-step"><span class="num">4</span>DCT</div>
+                        <div class="pipeline-step"><span class="num">5</span>Quantize</div>
+                        <div class="pipeline-step"><span class="num">6</span>Entropy Code</div>
+                    </div>
+                    <h3>Hierarchy</h3>
+                    <div class="hierarchy">
+                        <span class="hierarchy-item">Frame</span>
+                        <span class="hierarchy-arrow">→</span>
+                        <span class="hierarchy-item">Slice</span>
+                        <span class="hierarchy-arrow">→</span>
+                        <span class="hierarchy-item">MacroBlock (16×16)</span>
+                        <span class="hierarchy-arrow">→</span>
+                        <span class="hierarchy-item">TransformBlock (4×4)</span>
+                    </div>
+                    <div class="detail-stats">
+                        <div class="detail-stat">
+                            <span class="detail-stat-label">Bitstream Size</span>
+                            <span class="detail-stat-value" id="stat-bytes">— bytes</span>
+                        </div>
+                        <div class="detail-stat">
+                            <span class="detail-stat-label">Encode Time</span>
+                            <span class="detail-stat-value" id="stat-time">— ms</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+        const loading = document.getElementById('loading');
+        const welcomeState = document.getElementById('welcome-state');
+        const results = document.getElementById('results');
+        const errorMsg = document.getElementById('error-msg');
+
+        // Upload zone events
+        uploadZone.addEventListener('click', () => fileInput.click());
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                handleFile(fileInput.files[0]);
+            }
+        });
+
+        // Pattern buttons
+        document.querySelectorAll('.pattern-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pattern = btn.dataset.pattern;
+                const width = parseInt(document.getElementById('pattern-width').value) || 64;
+                const height = parseInt(document.getElementById('pattern-height').value) || 64;
+                encodeTestPattern(pattern, width, height);
+            });
+        });
+
+        function showLoading() {
+            welcomeState.style.display = 'none';
+            results.style.display = 'none';
+            loading.classList.add('active');
+            errorMsg.classList.remove('active');
+        }
+
+        function showResults() {
+            loading.classList.remove('active');
+            welcomeState.style.display = 'none';
+            results.style.display = 'block';
+        }
+
+        function showError(msg) {
+            loading.classList.remove('active');
+            errorMsg.textContent = msg;
+            errorMsg.classList.add('active');
+        }
+
+        function updateStats(stats) {
+            const width = stats.padded_width || stats.width;
+            const height = stats.padded_height || stats.height;
+            
+            document.getElementById('stat-dims').textContent = `${width}×${height}`;
+            document.getElementById('stat-ratio').textContent = stats.compression_ratio;
+            document.getElementById('stat-bpp').textContent = stats.bits_per_pixel;
+            document.getElementById('stat-psnr').textContent = stats.psnr_db;
+            document.getElementById('stat-bytes').textContent = `${stats.bitstream_bytes.toLocaleString()} bytes`;
+            document.getElementById('stat-time').textContent = `${stats.encode_time_ms} ms`;
+            
+            if (stats.num_slices) {
+                document.getElementById('stat-slices').textContent = stats.num_slices;
+                document.getElementById('stat-macroblocks').textContent = stats.num_macroblocks;
+                document.getElementById('stat-transforms').textContent = stats.num_transform_blocks;
+            }
+        }
+
+        function updateImages(data) {
+            document.getElementById('img-original').src = 'data:image/png;base64,' + data.original;
+            document.getElementById('img-reconstructed').src = 'data:image/png;base64,' + data.reconstructed;
+            document.getElementById('img-difference').src = 'data:image/png;base64,' + data.difference;
+        }
+
+        async function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showError('Please upload an image file');
+                return;
+            }
+
+            showLoading();
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch('/api/encode', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                updateImages(data);
+                updateStats(data.stats);
+                showResults();
+            } catch (err) {
+                showError('Failed to encode image: ' + err.message);
+            }
+        }
+
+        async function encodeTestPattern(pattern, width, height) {
+            showLoading();
+
+            try {
+                const response = await fetch('/api/test-pattern', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ pattern, width, height })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                updateImages(data);
+                updateStats(data.stats);
+                showResults();
+            } catch (err) {
+                showError('Failed to generate pattern: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
+
