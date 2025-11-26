@@ -47,6 +47,55 @@ def get_dct_visualization(block_4x4):
     return dct_scaled
 
 
+def generate_ctu_visualization(frame_data, mb_size, tb_size):
+    """Generate a visualization of the Coding Tree Unit structure.
+    
+    Creates an RGBA image showing the original frame with:
+    - Macroblock boundaries as 1px cyan boxes
+    - Transform block boundaries as 1px violet boxes
+    
+    Args:
+        frame_data: Grayscale image as numpy array
+        mb_size: Macroblock size (8, 16, or 32)
+        tb_size: Transform block size (4 or 8)
+    
+    Returns:
+        Base64 encoded PNG image
+    """
+    height, width = frame_data.shape
+    
+    # Create RGBA image from grayscale
+    rgba = np.zeros((height, width, 4), dtype=np.uint8)
+    rgba[:, :, 0] = frame_data  # R
+    rgba[:, :, 1] = frame_data  # G
+    rgba[:, :, 2] = frame_data  # B
+    rgba[:, :, 3] = 255          # A (fully opaque)
+    
+    # Colors for grid lines (RGBA)
+    mb_color = (34, 211, 238, 255)   # Cyan for macroblocks
+    tb_color = (167, 139, 250, 255)  # Violet for transform blocks
+    
+    # Draw transform block boundaries first (underneath MB boundaries)
+    for y in range(0, height, tb_size):
+        rgba[y, :, :] = tb_color
+    for x in range(0, width, tb_size):
+        rgba[:, x, :] = tb_color
+    
+    # Draw macroblock boundaries on top (thicker visual emphasis)
+    for y in range(0, height, mb_size):
+        rgba[y, :, :] = mb_color
+    for x in range(0, width, mb_size):
+        rgba[:, x, :] = mb_color
+    
+    # Draw right and bottom edges
+    if height > 0:
+        rgba[height - 1, :, :] = mb_color
+    if width > 0:
+        rgba[:, width - 1, :] = mb_color
+    
+    return image_to_base64(rgba, mode='RGBA')
+
+
 @app.route('/')
 def index():
     """Render the main dashboard."""
@@ -64,17 +113,29 @@ def encode_image():
         return jsonify({'error': 'No file selected'}), 400
     
     try:
+        # Get encoding parameters from form data
+        qp = int(request.form.get('qp', 26))
+        mb_size = int(request.form.get('mb_size', 16))
+        tb_size = int(request.form.get('tb_size', 4))
+        
+        # Validate parameters
+        qp = max(0, min(51, qp))
+        mb_size = mb_size if mb_size in [8, 16, 32] else 16
+        tb_size = tb_size if tb_size in [4, 8] else 4
+        if mb_size % tb_size != 0:
+            tb_size = 4  # Fall back to safe default
+        
         # Load image from upload
         img = Image.open(file.stream)
         img_gray = img.convert('L')
         orig_width, orig_height = img_gray.size
         
-        # Create encoder
-        encoder = H264()
+        # Create encoder with parameters
+        encoder = H264(qp=qp, mb_size=mb_size, tb_size=tb_size)
         
-        # Pad dimensions to multiples of 16
-        width = ((orig_width + 15) // 16) * 16
-        height = ((orig_height + 15) // 16) * 16
+        # Pad dimensions to multiples of mb_size
+        width = ((orig_width + mb_size - 1) // mb_size) * mb_size
+        height = ((orig_height + mb_size - 1) // mb_size) * mb_size
         encoder.width = width
         encoder.height = height
         
@@ -93,7 +154,8 @@ def encode_image():
         
         # Load frame
         from h264.Frame import Frame
-        encoder.frames.append(Frame(encoder, frame_data, WIDTH=width, HEIGHT=height))
+        encoder.frames.append(Frame(encoder, frame_data, WIDTH=width, HEIGHT=height,
+                                    qp=qp, mb_size=mb_size, tb_size=tb_size))
         
         # Original image base64
         original_b64 = image_to_base64(frame_data)
@@ -143,7 +205,11 @@ def encode_image():
         # Structure info
         num_slices = len(encoder.frames[0].slices)
         num_macroblocks = sum(len(list(s)) for s in encoder.frames[0].slices)
-        num_transform_blocks = num_macroblocks * 16
+        blocks_per_mb = (mb_size // tb_size) ** 2
+        num_transform_blocks = num_macroblocks * blocks_per_mb
+        
+        # Generate CTU visualization
+        ctu_b64 = generate_ctu_visualization(frame_data, mb_size, tb_size)
         
         return jsonify({
             'success': True,
@@ -151,6 +217,7 @@ def encode_image():
             'reconstructed': reconstructed_b64,
             'dct_sample': dct_b64,
             'difference': diff_b64,
+            'ctu': ctu_b64,
             'stats': {
                 'original_width': orig_width,
                 'original_height': orig_height,
@@ -165,7 +232,10 @@ def encode_image():
                 'encode_time_ms': round(encode_time * 1000, 1),
                 'num_slices': num_slices,
                 'num_macroblocks': num_macroblocks,
-                'num_transform_blocks': num_transform_blocks
+                'num_transform_blocks': num_transform_blocks,
+                'qp': qp,
+                'mb_size': mb_size,
+                'tb_size': tb_size
             }
         })
         
@@ -182,9 +252,21 @@ def test_pattern():
         height = int(request.json.get('height', 64))
         pattern_type = request.json.get('pattern', 'gradient')
         
-        # Ensure dimensions are multiples of 16
-        width = ((width + 15) // 16) * 16
-        height = ((height + 15) // 16) * 16
+        # Get encoding parameters
+        qp = int(request.json.get('qp', 26))
+        mb_size = int(request.json.get('mb_size', 16))
+        tb_size = int(request.json.get('tb_size', 4))
+        
+        # Validate parameters
+        qp = max(0, min(51, qp))
+        mb_size = mb_size if mb_size in [8, 16, 32] else 16
+        tb_size = tb_size if tb_size in [4, 8] else 4
+        if mb_size % tb_size != 0:
+            tb_size = 4  # Fall back to safe default
+        
+        # Ensure dimensions are multiples of mb_size
+        width = ((width + mb_size - 1) // mb_size) * mb_size
+        height = ((height + mb_size - 1) // mb_size) * mb_size
         
         # Cap at reasonable size for web demo
         width = min(width, 256)
@@ -194,15 +276,15 @@ def test_pattern():
         if pattern_type == 'gradient':
             pattern_func = lambda p: min(p, 255)
         elif pattern_type == 'checkerboard':
-            pattern_func = lambda x, y: 255 if ((x // 16) + (y // 16)) % 2 == 0 else 0
+            pattern_func = lambda x, y: 255 if ((x // mb_size) + (y // mb_size)) % 2 == 0 else 0
         elif pattern_type == 'circles':
             cx, cy = width // 2, height // 2
             pattern_func = lambda x, y: int(255 * (1 - min(1, ((x-cx)**2 + (y-cy)**2) / (min(cx, cy)**2))))
         else:
             pattern_func = lambda p: min(p, 255)
         
-        # Create encoder
-        encoder = H264(width=width, height=height)
+        # Create encoder with parameters
+        encoder = H264(width=width, height=height, qp=qp, mb_size=mb_size, tb_size=tb_size)
         
         # Generate custom pattern
         frame_data = np.zeros((height, width), dtype=np.uint8)
@@ -214,7 +296,8 @@ def test_pattern():
                     frame_data[y, x] = pattern_func(x)
         
         from h264.Frame import Frame
-        encoder.frames.append(Frame(encoder, frame_data, WIDTH=width, HEIGHT=height))
+        encoder.frames.append(Frame(encoder, frame_data, WIDTH=width, HEIGHT=height,
+                                    qp=qp, mb_size=mb_size, tb_size=tb_size))
         
         original_b64 = image_to_base64(frame_data)
         
@@ -239,11 +322,21 @@ def test_pattern():
         diff_scaled = np.clip(diff * 4, 0, 255).astype(np.uint8)
         diff_b64 = image_to_base64(diff_scaled)
         
+        # Generate CTU visualization
+        ctu_b64 = generate_ctu_visualization(frame_data, mb_size, tb_size)
+        
+        # Structure info
+        num_slices = len(encoder.frames[0].slices)
+        num_macroblocks = sum(len(list(s)) for s in encoder.frames[0].slices)
+        blocks_per_mb = (mb_size // tb_size) ** 2
+        num_transform_blocks = num_macroblocks * blocks_per_mb
+        
         return jsonify({
             'success': True,
             'original': original_b64,
             'reconstructed': reconstructed_b64,
             'difference': diff_b64,
+            'ctu': ctu_b64,
             'stats': {
                 'width': width,
                 'height': height,
@@ -253,7 +346,13 @@ def test_pattern():
                 'bits_per_pixel': round(bits / pixels, 3),
                 'compression_ratio': round((pixels * 8) / bits, 2) if bits > 0 else 0,
                 'psnr_db': round(psnr, 2) if psnr != float('inf') else 'Perfect',
-                'encode_time_ms': round(encode_time * 1000, 1)
+                'encode_time_ms': round(encode_time * 1000, 1),
+                'num_slices': num_slices,
+                'num_macroblocks': num_macroblocks,
+                'num_transform_blocks': num_transform_blocks,
+                'qp': qp,
+                'mb_size': mb_size,
+                'tb_size': tb_size
             }
         })
         

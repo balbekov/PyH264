@@ -238,6 +238,94 @@
             border-color: var(--accent-cyan);
         }
 
+        .size-input select {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238892a6' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.8rem center;
+        }
+
+        .size-input select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        /* Slider styles */
+        .slider-container {
+            margin-bottom: 1rem;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .slider-header label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .slider-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            background: var(--bg-surface);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            min-width: 2.5rem;
+            text-align: center;
+        }
+
+        .slider-input {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-surface);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+            cursor: pointer;
+            border: 2px solid var(--bg-elevated);
+            box-shadow: 0 2px 8px rgba(34, 211, 238, 0.3);
+        }
+
+        .slider-input::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+            cursor: pointer;
+            border: 2px solid var(--bg-elevated);
+            box-shadow: 0 2px 8px rgba(34, 211, 238, 0.3);
+        }
+
+        .param-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
         /* Content area */
         .content {
             padding: 2rem;
@@ -303,7 +391,7 @@
         /* Image comparison */
         .comparison-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
@@ -332,6 +420,7 @@
         .image-panel-header .dot.cyan { background: var(--accent-cyan); }
         .image-panel-header .dot.lime { background: var(--accent-lime); }
         .image-panel-header .dot.amber { background: var(--accent-amber); }
+        .image-panel-header .dot.violet { background: var(--accent-violet); }
 
         .image-panel-header span {
             font-family: 'JetBrains Mono', monospace;
@@ -606,6 +695,12 @@
         }
 
         /* Responsive */
+        @media (max-width: 1600px) {
+            .comparison-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
         @media (max-width: 1200px) {
             .stats-bar {
                 grid-template-columns: repeat(2, 1fr);
@@ -677,6 +772,34 @@
                         <span class="icon">◎</span>
                         Circle
                     </button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Encoding Parameters</div>
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label>Quantization (QP)</label>
+                        <span class="slider-value" id="qp-value">26</span>
+                    </div>
+                    <input type="range" class="slider-input" id="qp-slider" min="0" max="51" value="26">
+                </div>
+                <div class="param-row">
+                    <div class="size-input">
+                        <label>MB Size</label>
+                        <select id="mb-size">
+                            <option value="8">8×8</option>
+                            <option value="16" selected>16×16</option>
+                            <option value="32">32×32</option>
+                        </select>
+                    </div>
+                    <div class="size-input">
+                        <label>TB Size</label>
+                        <select id="tb-size">
+                            <option value="4" selected>4×4</option>
+                            <option value="8">8×8</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -766,6 +889,18 @@
                             <img id="img-difference" src="" alt="Difference image">
                         </div>
                     </div>
+                    <div class="image-panel">
+                        <div class="image-panel-header">
+                            <span class="dot violet"></span>
+                            <span>CTU Structure</span>
+                        </div>
+                        <div class="image-container zoomable" id="container-ctu">
+                            <img id="img-ctu" src="" alt="CTU Structure visualization">
+                            <div class="zoom-lens" id="lens-ctu">
+                                <img id="zoom-ctu" src="" alt="">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="architecture">
@@ -820,9 +955,9 @@
                         <span class="hierarchy-arrow">→</span>
                         <span class="hierarchy-item">Slice</span>
                         <span class="hierarchy-arrow">→</span>
-                        <span class="hierarchy-item">MacroBlock (16×16)</span>
+                        <span class="hierarchy-item" id="hierarchy-mb">MacroBlock (16×16)</span>
                         <span class="hierarchy-arrow">→</span>
-                        <span class="hierarchy-item">TransformBlock (4×4)</span>
+                        <span class="hierarchy-item" id="hierarchy-tb">TransformBlock (4×4)</span>
                     </div>
                     <div class="detail-stats">
                         <div class="detail-stat">
@@ -846,6 +981,52 @@
         const welcomeState = document.getElementById('welcome-state');
         const results = document.getElementById('results');
         const errorMsg = document.getElementById('error-msg');
+        
+        // Parameter controls
+        const qpSlider = document.getElementById('qp-slider');
+        const qpValue = document.getElementById('qp-value');
+        const mbSizeSelect = document.getElementById('mb-size');
+        const tbSizeSelect = document.getElementById('tb-size');
+        
+        // Track current source for re-encoding
+        let currentFile = null;
+        let currentPattern = null;
+        
+        // QP slider live update + re-encode
+        qpSlider.addEventListener('input', () => {
+            qpValue.textContent = qpSlider.value;
+        });
+        
+        qpSlider.addEventListener('change', () => {
+            reencodeCurrentSource();
+        });
+        
+        // MB/TB size change handlers
+        mbSizeSelect.addEventListener('change', () => {
+            reencodeCurrentSource();
+        });
+        
+        tbSizeSelect.addEventListener('change', () => {
+            reencodeCurrentSource();
+        });
+        
+        // Re-encode with current source when parameters change
+        function reencodeCurrentSource() {
+            if (currentFile) {
+                handleFile(currentFile);
+            } else if (currentPattern) {
+                encodeTestPattern(currentPattern.pattern, currentPattern.width, currentPattern.height);
+            }
+        }
+        
+        // Helper to get current encoding parameters
+        function getEncodingParams() {
+            return {
+                qp: parseInt(qpSlider.value),
+                mb_size: parseInt(mbSizeSelect.value),
+                tb_size: parseInt(tbSizeSelect.value)
+            };
+        }
 
         // Upload zone events
         uploadZone.addEventListener('click', () => fileInput.click());
@@ -914,24 +1095,35 @@
             document.getElementById('stat-bytes').textContent = `${stats.bitstream_bytes.toLocaleString()} bytes`;
             document.getElementById('stat-time').textContent = `${stats.encode_time_ms} ms`;
             
-            if (stats.num_slices) {
+            if (stats.num_slices !== undefined) {
                 document.getElementById('stat-slices').textContent = stats.num_slices;
                 document.getElementById('stat-macroblocks').textContent = stats.num_macroblocks;
                 document.getElementById('stat-transforms').textContent = stats.num_transform_blocks;
+            }
+            
+            // Update hierarchy display with current parameters
+            if (stats.mb_size !== undefined && stats.tb_size !== undefined) {
+                const mbLabel = document.getElementById('hierarchy-mb');
+                const tbLabel = document.getElementById('hierarchy-tb');
+                if (mbLabel) mbLabel.textContent = `MacroBlock (${stats.mb_size}×${stats.mb_size})`;
+                if (tbLabel) tbLabel.textContent = `TransformBlock (${stats.tb_size}×${stats.tb_size})`;
             }
         }
 
         function updateImages(data) {
             const originalSrc = 'data:image/png;base64,' + data.original;
             const reconstructedSrc = 'data:image/png;base64,' + data.reconstructed;
+            const ctuSrc = data.ctu ? 'data:image/png;base64,' + data.ctu : '';
             
             document.getElementById('img-original').src = originalSrc;
             document.getElementById('img-reconstructed').src = reconstructedSrc;
             document.getElementById('img-difference').src = 'data:image/png;base64,' + data.difference;
+            document.getElementById('img-ctu').src = ctuSrc;
             
             // Update zoom images
             document.getElementById('zoom-original').src = originalSrc;
             document.getElementById('zoom-reconstructed').src = reconstructedSrc;
+            document.getElementById('zoom-ctu').src = ctuSrc;
         }
 
         async function handleFile(file) {
@@ -940,10 +1132,18 @@
                 return;
             }
 
+            // Store current file for re-encoding and clear pattern
+            currentFile = file;
+            currentPattern = null;
+
             showLoading();
 
+            const params = getEncodingParams();
             const formData = new FormData();
             formData.append('image', file);
+            formData.append('qp', params.qp);
+            formData.append('mb_size', params.mb_size);
+            formData.append('tb_size', params.tb_size);
 
             try {
                 const response = await fetch('/api/encode', {
@@ -964,10 +1164,19 @@
             } catch (err) {
                 showError('Failed to encode image: ' + err.message);
             }
+            
+            // Reset file input to allow re-uploading same file
+            fileInput.value = '';
         }
 
         async function encodeTestPattern(pattern, width, height) {
+            // Store current pattern for re-encoding and clear file
+            currentPattern = { pattern, width, height };
+            currentFile = null;
+
             showLoading();
+
+            const params = getEncodingParams();
 
             try {
                 const response = await fetch('/api/test-pattern', {
@@ -975,7 +1184,14 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ pattern, width, height })
+                    body: JSON.stringify({ 
+                        pattern, 
+                        width, 
+                        height,
+                        qp: params.qp,
+                        mb_size: params.mb_size,
+                        tb_size: params.tb_size
+                    })
                 });
 
                 const data = await response.json();
@@ -1047,9 +1263,10 @@
             });
         }
 
-        // Initialize zoom on both zoomable containers
+        // Initialize zoom on all zoomable containers
         setupZoom('container-original', 'img-original', 'lens-original', 'zoom-original');
         setupZoom('container-reconstructed', 'img-reconstructed', 'lens-reconstructed', 'zoom-reconstructed');
+        setupZoom('container-ctu', 'img-ctu', 'lens-ctu', 'zoom-ctu');
     </script>
 </body>
 </html>
