@@ -347,6 +347,8 @@
             justify-content: center;
             background: repeating-conic-gradient(var(--bg-surface) 0% 25%, var(--bg-deep) 0% 50%) 
                         50% / 16px 16px;
+            position: relative;
+            overflow: hidden;
         }
 
         .image-container img {
@@ -354,6 +356,36 @@
             max-height: 300px;
             image-rendering: pixelated;
             border-radius: 4px;
+        }
+
+        /* Zoom lens */
+        .image-container.zoomable {
+            cursor: zoom-in;
+        }
+
+        .zoom-lens {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 2px solid var(--accent-cyan);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.3), inset 0 0 40px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .zoom-lens img {
+            position: absolute;
+            image-rendering: pixelated;
+            max-width: none;
+            max-height: none;
+        }
+
+        .image-container.zoomable:hover .zoom-lens {
+            opacity: 1;
         }
 
         .image-placeholder {
@@ -709,8 +741,11 @@
                             <span class="dot cyan"></span>
                             <span>Original</span>
                         </div>
-                        <div class="image-container">
+                        <div class="image-container zoomable" id="container-original">
                             <img id="img-original" src="" alt="Original image">
+                            <div class="zoom-lens" id="lens-original">
+                                <img id="zoom-original" src="" alt="">
+                            </div>
                         </div>
                     </div>
                     <div class="image-panel">
@@ -718,8 +753,11 @@
                             <span class="dot lime"></span>
                             <span>Reconstructed</span>
                         </div>
-                        <div class="image-container">
+                        <div class="image-container zoomable" id="container-reconstructed">
                             <img id="img-reconstructed" src="" alt="Reconstructed image">
+                            <div class="zoom-lens" id="lens-reconstructed">
+                                <img id="zoom-reconstructed" src="" alt="">
+                            </div>
                         </div>
                     </div>
                     <div class="image-panel">
@@ -887,9 +925,16 @@
         }
 
         function updateImages(data) {
-            document.getElementById('img-original').src = 'data:image/png;base64,' + data.original;
-            document.getElementById('img-reconstructed').src = 'data:image/png;base64,' + data.reconstructed;
+            const originalSrc = 'data:image/png;base64,' + data.original;
+            const reconstructedSrc = 'data:image/png;base64,' + data.reconstructed;
+            
+            document.getElementById('img-original').src = originalSrc;
+            document.getElementById('img-reconstructed').src = reconstructedSrc;
             document.getElementById('img-difference').src = 'data:image/png;base64,' + data.difference;
+            
+            // Update zoom images
+            document.getElementById('zoom-original').src = originalSrc;
+            document.getElementById('zoom-reconstructed').src = reconstructedSrc;
         }
 
         async function handleFile(file) {
@@ -950,6 +995,59 @@
                 showError('Failed to generate pattern: ' + err.message);
             }
         }
+
+        // Zoom functionality
+        const zoomFactor = 4;
+        const lensSize = 120;
+
+        function setupZoom(containerId, imgId, lensId, zoomImgId) {
+            const container = document.getElementById(containerId);
+            const img = document.getElementById(imgId);
+            const lens = document.getElementById(lensId);
+            const zoomImg = document.getElementById(zoomImgId);
+
+            container.addEventListener('mousemove', (e) => {
+                if (!img.src || img.src === window.location.href) return;
+
+                const rect = container.getBoundingClientRect();
+                const imgRect = img.getBoundingClientRect();
+                
+                // Mouse position relative to container
+                let x = e.clientX - rect.left;
+                let y = e.clientY - rect.top;
+
+                // Position lens centered on cursor
+                lens.style.left = (x - lensSize / 2) + 'px';
+                lens.style.top = (y - lensSize / 2) + 'px';
+
+                // Calculate position relative to the image
+                const imgX = e.clientX - imgRect.left;
+                const imgY = e.clientY - imgRect.top;
+
+                // Set zoom image size
+                const zoomWidth = img.naturalWidth * zoomFactor;
+                const zoomHeight = img.naturalHeight * zoomFactor;
+                zoomImg.style.width = zoomWidth + 'px';
+                zoomImg.style.height = zoomHeight + 'px';
+
+                // Calculate zoom image position (centered in lens)
+                const ratioX = imgX / img.width;
+                const ratioY = imgY / img.height;
+                const zoomX = -(ratioX * zoomWidth) + lensSize / 2;
+                const zoomY = -(ratioY * zoomHeight) + lensSize / 2;
+
+                zoomImg.style.left = zoomX + 'px';
+                zoomImg.style.top = zoomY + 'px';
+            });
+
+            container.addEventListener('mouseleave', () => {
+                lens.style.opacity = '0';
+            });
+        }
+
+        // Initialize zoom on both zoomable containers
+        setupZoom('container-original', 'img-original', 'lens-original', 'zoom-original');
+        setupZoom('container-reconstructed', 'img-reconstructed', 'lens-reconstructed', 'zoom-reconstructed');
     </script>
 </body>
 </html>
