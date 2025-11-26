@@ -1,0 +1,9 @@
+# PyH264 - Educational H.264 Video Codec
+# Install dependencies: pip install -r requirements.txt
+
+numpy>=1.20.0
+Pillow>=8.0.0
+
+# Development/Testing
+pytest>=7.0.0
+

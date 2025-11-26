@@ -1,4 +1,5 @@
-from numpy import *
+import numpy as np
+import logging
 
 golomb_enc_LUT = {}
 golomb_dec_LUT = {}
@@ -55,7 +56,7 @@ def expgolomb_dec(kernel_size, vlc):
 
     # Sliding window of the VLC
     window = []
-    block = int16(full((4,4), 127, dtype=int16))
+    block = np.int16(np.full((4,4), 127, dtype=np.int16))
 
     # Slice characters off the VLC, see if they match an element in our LUT
     # Code is prefix free and uniquely decodable.
@@ -63,7 +64,7 @@ def expgolomb_dec(kernel_size, vlc):
     for el in vlc:
         window.append(el)
         if(len(window) == 100):
-            print("Warning! VLC decoding error. Consuming until slice marker.")
+            logging.warning("VLC decoding error. Consuming until slice marker.")
             
             # Skip to next slice synchronization marker
             slice_marker = vlc.find('000000001')
@@ -80,7 +81,7 @@ def expgolomb_dec(kernel_size, vlc):
         if(i > 3):
             return (1, vlc[bitcount:], block)
 
-    print("Error decoding block. VLC underrun.")
+    logging.error("Error decoding block. VLC underrun.")
     return (-1, [], block)
 
 def cavlc_enc(block):

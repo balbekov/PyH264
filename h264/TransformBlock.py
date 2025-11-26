@@ -1,4 +1,5 @@
-from numpy import *
+import numpy as np
+from numpy import zeros, around, asarray, matrix, transpose
 from math import cos
 
 import h264.DCT as DCT
@@ -19,7 +20,7 @@ class TransformBlock():
     # For the encode direction, create a block with an optional preload and size 
     def __init__(self, parent, new_block, kernel_size=4):
         self.parent = parent
-        if new_block != None:
+        if new_block is not None:
             self.block = new_block
             self.state = "Spatial"
         else:
@@ -39,32 +40,32 @@ class TransformBlock():
     def dct(self):
         # DCT(block) = (cosines .* block) .* (cosines^-1)
         if self.state != "Spatial":
-            print("Block must be in spatial mode for DCT")
-        self.block = float64(self.block)
+            raise ValueError("Block must be in spatial mode for DCT")
+        self.block = np.float64(self.block)
         # Important to round; a cast by itself will cause severe aliasing
         self.block = around(self.coses.dot(self.block).dot(transpose(self.coses)))
-        self.block = int16(self.block)
+        self.block = np.int16(self.block)
 
         self.state = "Frequency"
 
     def idct(self):
         # IDCT(block) = ((cosines^-1) .* block) .* cosines
         if self.state != "Frequency":
-            print("Block must be in frequency mode for IDCT")
+            raise ValueError("Block must be in frequency mode for IDCT")
         self.block = transpose(self.coses).dot(self.block).dot(self.coses)
-        self.block = uint8(around(self.block))
+        self.block = np.uint8(around(self.block))
         self.state = "Spatial"
 
     def quantize(self):
         if self.state != "Frequency":
-            print("Block must be in frequency mode for quantization")
-        self.block = int16(around(self.block / self.qmat))
+            raise ValueError("Block must be in frequency mode for quantization")
+        self.block = np.int16(around(self.block / self.qmat))
         self.state = "Quantized"
 
     def dequantize(self):
         if self.state != "Quantized":
-            print("Block must be in quantized mode for dequantization")
-        self.block = int16(around(self.block * self.qmat))
+            raise ValueError("Block must be in quantized mode for dequantization")
+        self.block = np.int16(around(self.block * self.qmat))
         self.state = "Frequency"
 
     def vlc_enc(self):

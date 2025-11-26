@@ -1,5 +1,5 @@
 from h264.Slice import Slice
-from numpy import *
+import numpy as np
 import logging
 
 ''' docstring
@@ -12,10 +12,10 @@ class Frame:
         self.height = HEIGHT
         self.slices = []
         self.parent = parent
-        if new_frame != None:
+        if new_frame is not None:
             self.load_image(new_frame)
         else:
-            self.slices = [Slice(self, None) for i in range(0, HEIGHT, 16)]
+            self.slices = [Slice(self, None, WIDTH=WIDTH) for i in range(0, HEIGHT, 16)]
 
     '''
     Load a Numpy UINT8 matrix into this frame
@@ -23,10 +23,10 @@ class Frame:
     '''
     def load_image(self, new_frame):
         for y in range(0, new_frame.shape[0], 16):
-            self.slices.append(Slice(self, new_frame[y:y+16, 0:new_frame.shape[1]]))
+            self.slices.append(Slice(self, new_frame[y:y+16, 0:new_frame.shape[1]], WIDTH=self.width))
 
     def get_image(self):
-        image = uint8(empty((self.height, self.width)))
+        image = np.uint8(np.empty((self.height, self.width)))
         # Iterate through slice -> macroblock -> transformblock layers
         # Y coordinate increments by 16 for every slice, and 4 for every transformblock
         for i, slice in enumerate(self.slices):
@@ -53,10 +53,10 @@ class Frame:
     def set_bits(self, vlc):
         for i, slice in enumerate(self.slices):
             vlc = slice.set_bits(vlc)
-            print("Finished slice ", i, " , ", len(vlc), " bits remaining")
+            logging.debug("Finished slice %d, %d bits remaining", i, len(vlc))
 
         if len(vlc) > 0:
-            print("Warning! Not all VLC bits used in frame processing")
+            logging.warning("Not all VLC bits used in frame processing")
 
     # Get the residuals of this Frame when exposed to a predicted Frame
     def get_residuals(self, pred_frame):

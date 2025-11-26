@@ -1,4 +1,5 @@
-from numpy import *
+import numpy as np
+from numpy import int16
 import logging as logger
 
 # Coeff_token tables; index by Num_Coeffs in first dimension, Trailing Ones in second
@@ -144,7 +145,7 @@ def CAVLC_enc(input_array):
     zigzag = [(idx, coeff) for idx, coeff in enumerate(zigzag)]
     zigzag.reverse()
 
-    print(zigzag)
+    logger.debug("Zigzag: %s", zigzag)
     # For each element, sort it into the appropriate bucket
     for idx, el in zigzag:
         if el == 0:
@@ -201,8 +202,7 @@ def CAVLC_enc(input_array):
             level_code = -2*coeff - 1
         else:
             level_code = 0
-            print("Trying to encode 0 coeff. Halt")
-            assert(0)
+            raise ValueError("Cannot encode zero coefficient")
 
         # Saturate the prefixlength to a maximum of 15
         if (level_code >> suffix_length) >= 15:
@@ -235,8 +235,8 @@ def CAVLC_enc(input_array):
         #logger.debug("Level VLC[%i] suffixLength: %i level_prefix: %s level_suffix: %s", idx, suffix_length, "".join(level_prefix), "".join(level_suffix))
 
     # Now code the zeros
-    print("len zeros" + str(len(zeros)))
-    print("num coeffs" + str(num_coeffs))
+    logger.debug("len zeros: %d", len(zeros))
+    logger.debug("num coeffs: %d", num_coeffs)
 
     # Be careful; Table_zeros is 0 indexed for zero count but not for coeff count
     total_zeros = Table_zeros[num_coeffs-1][len(zeros)]
@@ -259,14 +259,14 @@ def CAVLC_enc(input_array):
             run_before = zerosLeft
 
         code = Table_run[run_before][min(zerosLeft,6)]
-        print("Coding coeff(%i): %i" % (idx, coeff[1]))
-        print("code " + str(code) +  ": run_before " + str(run_before) + " zeros left " + str(zerosLeft) )
+        logger.debug("Coding coeff(%d): %d", idx, coeff[1])
+        logger.debug("code %s: run_before %d zeros left %d", code, run_before, zerosLeft)
         run.append(code)
         if(run_before):
             zerosLeft -= run_before
 
-    print("total zeros " + str(total_zeros))
-    print("run" + str(run))
+    logger.debug("total zeros: %s", total_zeros)
+    logger.debug("run: %s", run)
 
     return "".join(generate_cavlc_bits(coeff_token, level_codes, trailing_ones, total_zeros, run))
 

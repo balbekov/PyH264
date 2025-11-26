@@ -1,4 +1,7 @@
-from numpy import *
+import math
+from math import cos
+import numpy as np
+from numpy import sqrt, empty
 
 def lamb(u, N):
     if(u == 0):
@@ -35,13 +38,15 @@ def dct2(A):
 
 def idct2(A):
     N = A.shape[0]
-    coeffs = uint8(empty([N,N]))
+    coeffs = empty([N,N])
 
     for i in range(0, N):
         for j in range(0, N):
-            coeffs[i, j] = round(idct1(A, i, j))
-                            
-    return coeffs
+            # Clip to valid uint8 range before converting
+            val = round(idct1(A, i, j))
+            coeffs[i, j] = max(0, min(255, val))
+    
+    return np.uint8(coeffs)
 
 def idct1(A, i, j):
     F = 0.0

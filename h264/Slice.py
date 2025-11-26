@@ -1,5 +1,6 @@
-from h264.MacroBlock import *
+from h264.MacroBlock import MacroBlock
 from PIL import Image
+import logging
 
 class Slice:
     'Binary (VLC) coded collection of multiple macroblocks'
@@ -12,7 +13,7 @@ class Slice:
         self.blocks = []
         self.parent = parent
         # Optional preload step
-        if (new_slice != None):
+        if new_slice is not None:
             self.load_blocks(new_slice)
         else: 
             for x in range(0, WIDTH, 16):
@@ -50,16 +51,14 @@ class Slice:
     def set_bits(self, vlc):
         for i, block in enumerate(self.blocks):
             vlc = block.set_vlc(vlc)
-            print("Set VLC for MB: ", i)
+            logging.debug("Set VLC for MB: %d", i)
             # If we encountered a block decoding error, terminate the slice
-            if(block.valid == 0):
-                return vlc # The VLC decoder already read to the end of the slice
+            if block.valid == 0:
+                return vlc  # The VLC decoder already read to the end of the slice
 
         # Make sure the slice synchronization marker is present
-        if('000000001' not in vlc[0:9]):
-            print("Still missing synch marker dipshit")
-            #im = Image.fromarray(self.parent.get_image(), "L")
-            #im.show()
+        if '000000001' not in vlc[0:9]:
+            logging.warning("Slice synchronization marker missing")
         
         return vlc[9:]
         

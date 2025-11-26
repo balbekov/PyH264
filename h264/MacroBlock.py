@@ -1,5 +1,6 @@
-from numpy import *
-from h264.TransformBlock import *
+import numpy as np
+from numpy import floor, concatenate, empty, zeros
+from h264.TransformBlock import TransformBlock
 import logging as logger
 
 # Using internal 16 bit types
@@ -13,9 +14,9 @@ class MacroBlock():
     def __init__(self, parent, new_block, mb_size = 16):
         self.valid = 1
         self.parent = 1
-        if(new_block != None):
+        if new_block is not None:
             assert(len(new_block) == 16)
-            self.blocks = [TransformBlock(self, new_block[floor(i/4)*4:floor(i/4)*4+4, (i%4)*4:(i%4)*4+4]) for i in range(16)]
+            self.blocks = [TransformBlock(self, new_block[int(floor(i/4))*4:int(floor(i/4))*4+4, (i%4)*4:(i%4)*4+4]) for i in range(16)]
         else:
             self.blocks = [TransformBlock(self, zeros((4, 4))) for i in range(16)]
 
@@ -30,11 +31,11 @@ class MacroBlock():
 
     def dct(self):
         for block in self.blocks:
-            blocks.dct()
+            block.dct()
 
     def idct(self):
         for block in self.blocks:
-            blocks.idct()
+            block.idct()
 
     def vlc_dec(self, VLC):
         return VLC.expgolomb_dec(self.kernel_size, VLC)
@@ -137,8 +138,8 @@ class MacroBlock():
             return result
 
     def get_image(self):
-        mb_image = uint8(empty((16,16)))
+        mb_image = np.uint8(empty((16,16)))
         for i,block in enumerate(self.blocks):
-            mb_image[floor(i/4)*4:floor(i/4)*4+4, (i%4)*4:(i%4)*4+4] = block.block
+            mb_image[int(floor(i/4))*4:int(floor(i/4))*4+4, (i%4)*4:(i%4)*4+4] = block.block
 
         return mb_image
