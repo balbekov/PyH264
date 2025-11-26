@@ -5,20 +5,33 @@ import logging as logger
 
 # Using internal 16 bit types
 class MacroBlock():
-    'Macroblock Class (Composed of 4x4 TransformBlocks). Other partitions unsupported'
-    # 4x4 laid out in raster order:
-    #         0    1   2   3
-    #         4    5   6   7 ... 16
+    'Macroblock Class (Composed of TransformBlocks). Supports configurable mb_size and tb_size'
+    # Transform blocks laid out in raster order
 
     # For the encode direction, create a block with an optional preload and size 
-    def __init__(self, parent, new_block, mb_size = 16):
+    def __init__(self, parent, new_block, mb_size=16, tb_size=4, qp=26):
         self.valid = 1
-        self.parent = 1
+        self.parent = parent
+        self.mb_size = mb_size
+        self.tb_size = tb_size
+        self.qp = qp
+        
+        # Number of transform blocks per dimension and total
+        self.blocks_per_dim = mb_size // tb_size
+        self.num_blocks = self.blocks_per_dim ** 2
+        
         if new_block is not None:
-            assert(len(new_block) == 16)
-            self.blocks = [TransformBlock(self, new_block[int(floor(i/4))*4:int(floor(i/4))*4+4, (i%4)*4:(i%4)*4+4]) for i in range(16)]
+            assert(len(new_block) == mb_size)
+            self.blocks = [
+                TransformBlock(self, 
+                              new_block[int(floor(i/self.blocks_per_dim))*tb_size:int(floor(i/self.blocks_per_dim))*tb_size+tb_size, 
+                                       (i%self.blocks_per_dim)*tb_size:(i%self.blocks_per_dim)*tb_size+tb_size],
+                              kernel_size=tb_size, qp=qp) 
+                for i in range(self.num_blocks)
+            ]
         else:
-            self.blocks = [TransformBlock(self, zeros((4, 4))) for i in range(16)]
+            self.blocks = [TransformBlock(self, zeros((tb_size, tb_size)), kernel_size=tb_size, qp=qp) 
+                          for i in range(self.num_blocks)]
 
     # For the decode direction, create a new MacroBlock from a VLC
     # def __init__(self, vlc = None):
@@ -40,13 +53,16 @@ class MacroBlock():
     def vlc_dec(self, VLC):
         return VLC.expgolomb_dec(self.kernel_size, VLC)
 
-    # Return the bottom row of the macroblock
+    # Return the right column of the macroblock
     def right_column(self):
-        return concatenate([self.blocks[i].block[0:4,3] for i in range(3, 16, 4)])
+        return concatenate([self.blocks[i].block[0:self.tb_size, self.tb_size-1] 
+                           for i in range(self.blocks_per_dim-1, self.num_blocks, self.blocks_per_dim)])
 
-    # Return the right row of the macroblock
+    # Return the bottom row of the macroblock
     def bottom_row(self):
-        return concatenate([self.blocks[i].block[3,0:4] for i in range(12,16)])
+        start_idx = self.num_blocks - self.blocks_per_dim
+        return concatenate([self.blocks[i].block[self.tb_size-1, 0:self.tb_size] 
+                           for i in range(start_idx, self.num_blocks)])
 
     # Given the surrounding pixels (one row above, one column before)
     # Evaluate if the supported prediction modes help, and encode the block with that mode
@@ -57,29 +73,30 @@ class MacroBlock():
         left_column = neighbors[1]
  
         # Initialize empty predicted macroblocks
-        dc_pred = empty((16,16))
-        h_pred = empty((16,16))
-        v_pred = empty((16,16))
+        dc_pred = empty((self.mb_size, self.mb_size))
+        h_pred = empty((self.mb_size, self.mb_size))
+        v_pred = empty((self.mb_size, self.mb_size))
 
-        dc_residual = [empty((4,4))] * 16
-        h_residual = [empty((4,4))] * 16
-        v_residual = [empty((4,4))] * 16
+        dc_residual = [empty((self.tb_size, self.tb_size))] * self.num_blocks
+        h_residual = [empty((self.tb_size, self.tb_size))] * self.num_blocks
+        v_residual = [empty((self.tb_size, self.tb_size))] * self.num_blocks
 
         # Create the intra predictions
-        for x in range(16):
-            for y in range(16):
+        for x in range(self.mb_size):
+            for y in range(self.mb_size):
                 dc_pred[y,x] = top_row[0]
                 h_pred[y, x] = left_column[y]
                 v_pred[y, x] = top_row[x]
 
-        #dc_pred = empty((16,16)).fill(top_row[0])
+        #dc_pred = empty((mb_size,mb_size)).fill(top_row[0])
 
         # Evaluate the residuals for SNR
-        for x in range(4):
-            for y in range(4):
-                dc_residual[y*4+x]  = dc_pred[x*4:x*4+4, y*4:y*4+4] - self.blocks[y+x*4].block
-                h_residual[y*4+x]   = h_pred[x*4:x*4+4, y*4:y*4+4] - self.blocks[y+x*4].block
-                v_residual[y*4+x]   = v_pred[x*4:x*4+4, y*4:y*4+4] - self.blocks[y+x*4].block
+        for x in range(self.blocks_per_dim):
+            for y in range(self.blocks_per_dim):
+                tb = self.tb_size
+                dc_residual[y*self.blocks_per_dim+x] = dc_pred[x*tb:x*tb+tb, y*tb:y*tb+tb] - self.blocks[y+x*self.blocks_per_dim].block
+                h_residual[y*self.blocks_per_dim+x] = h_pred[x*tb:x*tb+tb, y*tb:y*tb+tb] - self.blocks[y+x*self.blocks_per_dim].block
+                v_residual[y*self.blocks_per_dim+x] = v_pred[x*tb:x*tb+tb, y*tb:y*tb+tb] - self.blocks[y+x*self.blocks_per_dim].block
         
         # Pick the smallest value (if above threshold) for the entire macroblock
         dc_snr = [(id, abs(dc_x.mean())) for id, dc_x in enumerate(dc_residual)] 
@@ -108,11 +125,11 @@ class MacroBlock():
             }[x]
 
         # Set the prediction mode and insert the residual to be coded
-        for x in range(4):
-            for y in range(4):
-                self.blocks[x*4+y].block = best_blocks(best_mode[0])[y*4+x]
-                self.blocks[x*4+y].prediction_mode = best_mode[0]
-                #logger.info("Picking mode %s for block %i", best_mode[x*4+y], )
+        for x in range(self.blocks_per_dim):
+            for y in range(self.blocks_per_dim):
+                self.blocks[x*self.blocks_per_dim+y].block = best_blocks(best_mode[0])[y*self.blocks_per_dim+x]
+                self.blocks[x*self.blocks_per_dim+y].prediction_mode = best_mode[0]
+                #logger.info("Picking mode %s for block %i", best_mode[x*blocks_per_dim+y], )
 
         return best_mode[0]
 
@@ -127,7 +144,7 @@ class MacroBlock():
 
     # Setter method to set VLC, returns unconsumed VLC
     def set_vlc(self, vlc):
-        for i in range(16):
+        for i in range(self.num_blocks):
             vlc = self.blocks[i].set_vlc(vlc)
 
         return vlc
@@ -138,8 +155,11 @@ class MacroBlock():
             return result
 
     def get_image(self):
-        mb_image = np.uint8(empty((16,16)))
-        for i,block in enumerate(self.blocks):
-            mb_image[int(floor(i/4))*4:int(floor(i/4))*4+4, (i%4)*4:(i%4)*4+4] = block.block
+        mb_image = np.uint8(empty((self.mb_size, self.mb_size)))
+        for i, block in enumerate(self.blocks):
+            row = int(floor(i / self.blocks_per_dim))
+            col = i % self.blocks_per_dim
+            mb_image[row*self.tb_size:row*self.tb_size+self.tb_size, 
+                     col*self.tb_size:col*self.tb_size+self.tb_size] = block.block
 
         return mb_image

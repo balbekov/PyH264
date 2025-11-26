@@ -48,7 +48,7 @@ def cavlc_enc():
 
     return vlc
 
-def expgolomb_dec(kernel_size, vlc):
+def expgolomb_dec(kernel_size, vlc, qp=26):
     if(len(golomb_dec_LUT) == 0):
         init_LUT()
     i = 0
@@ -56,7 +56,7 @@ def expgolomb_dec(kernel_size, vlc):
 
     # Sliding window of the VLC
     window = []
-    block = np.int16(np.full((4,4), 127, dtype=np.int16))
+    block = np.int16(np.full((kernel_size, kernel_size), 127, dtype=np.int16))
 
     # Slice characters off the VLC, see if they match an element in our LUT
     # Code is prefix free and uniquely decodable.
@@ -74,11 +74,11 @@ def expgolomb_dec(kernel_size, vlc):
         bitcount += 1
         if "".join(window) in golomb_dec_LUT:
             block[i][j] = golomb_dec_LUT["".join(window)]
-            if(j == 3):
+            if(j == kernel_size - 1):
                 i = i + 1
-            j = (j + 1) % 4
+            j = (j + 1) % kernel_size
             window = []
-        if(i > 3):
+        if(i > kernel_size - 1):
             return (1, vlc[bitcount:], block)
 
     logging.error("Error decoding block. VLC underrun.")

@@ -12,13 +12,24 @@ import logging
 class H264:
     'H264 coder object with memory for several frames. Operates \
      on file pointer; generates bitstream into output FIFO'
-    def __init__(self, width=1280, height=720):
+    def __init__(self, width=1280, height=720, qp=26, mb_size=16, tb_size=4):
         # Strictly incrementing frame counter
         self.frame_counter = 0
         self.frames = []
         # Default dimensions (can be overridden by loaded video)
         self.width = width
         self.height = height
+        
+        # Encoding parameters
+        self.qp = qp          # Quantization parameter (0-51, lower = higher quality)
+        self.mb_size = mb_size  # Macroblock size (8, 16, or 32)
+        self.tb_size = tb_size  # Transform block size (4 or 8)
+        
+        # Validate parameters
+        assert qp >= 0 and qp <= 51, "QP must be between 0 and 51"
+        assert mb_size in [8, 16, 32], "Macroblock size must be 8, 16, or 32"
+        assert tb_size in [4, 8], "Transform block size must be 4 or 8"
+        assert mb_size % tb_size == 0, "Macroblock size must be divisible by transform block size"
 
  # Compresses the frame specified by frame_id, outputs bitstream
     def compress_frame(self, frame_id):
@@ -32,10 +43,12 @@ class H264:
         for i in range(self.width):
             for j in range(self.height):
                 test_data[j, i] = pattern(i)
-        self.frames.append(Frame(self, test_data, WIDTH=self.width, HEIGHT=self.height))
+        self.frames.append(Frame(self, test_data, WIDTH=self.width, HEIGHT=self.height,
+                                  qp=self.qp, mb_size=self.mb_size, tb_size=self.tb_size))
 
     def load_bitstream(self, vlc):
-        frame = Frame(self, None, WIDTH=self.width, HEIGHT=self.height)
+        frame = Frame(self, None, WIDTH=self.width, HEIGHT=self.height,
+                      qp=self.qp, mb_size=self.mb_size, tb_size=self.tb_size)
         frame.set_bits(vlc)
         self.frames.append(frame)
 
@@ -81,7 +94,8 @@ class H264:
         y_frame = self.grab_plane(yuv_file, self.width, self.height)
         cr_frame = self.grab_plane(yuv_file, self.width // 2, self.height // 2)
         cb_frame = self.grab_plane(yuv_file, self.width // 2, self.height // 2)
-        self.frames.append(Frame(self, y_frame, WIDTH=self.width, HEIGHT=self.height))
+        self.frames.append(Frame(self, y_frame, WIDTH=self.width, HEIGHT=self.height,
+                                  qp=self.qp, mb_size=self.mb_size, tb_size=self.tb_size))
 
     def load_image(self, image_path):
         """Load an image file (jpg, png, bmp, gif, tiff) as a single frame.
@@ -121,7 +135,8 @@ class H264:
         logging.info("Loaded image: %dx%d (padded to %dx%d)", 
                     orig_width, orig_height, self.width, self.height)
         
-        self.frames.append(Frame(self, frame_data, WIDTH=self.width, HEIGHT=self.height))
+        self.frames.append(Frame(self, frame_data, WIDTH=self.width, HEIGHT=self.height,
+                                  qp=self.qp, mb_size=self.mb_size, tb_size=self.tb_size))
 
     def show_frame(self, frame_id):
         frame = self.frames[frame_id].get_image()

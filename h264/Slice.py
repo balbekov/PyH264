@@ -7,22 +7,26 @@ class Slice:
 
 
 
-    def __init__(self, parent, new_slice, WIDTH=1280, HEIGHT=720):
+    def __init__(self, parent, new_slice, WIDTH=1280, HEIGHT=720, qp=26, mb_size=16, tb_size=4):
         self.width = WIDTH
         self.height = HEIGHT
         self.blocks = []
         self.parent = parent
+        self.qp = qp
+        self.mb_size = mb_size
+        self.tb_size = tb_size
         # Optional preload step
         if new_slice is not None:
             self.load_blocks(new_slice)
         else: 
-            for x in range(0, WIDTH, 16):
-                self.blocks.append(MacroBlock(self, None))      
+            for x in range(0, WIDTH, mb_size):
+                self.blocks.append(MacroBlock(self, None, mb_size=mb_size, tb_size=tb_size, qp=qp))      
 
     # For an input slice numpy array, create transform blocks
     def load_blocks(self, new_slice):
-        for x in range(0, new_slice.shape[1], 16):
-            self.blocks.append(MacroBlock(self, new_slice[0:16, x:x+16])) 
+        for x in range(0, new_slice.shape[1], self.mb_size):
+            self.blocks.append(MacroBlock(self, new_slice[0:self.mb_size, x:x+self.mb_size], 
+                                          mb_size=self.mb_size, tb_size=self.tb_size, qp=self.qp)) 
 
 
     def __str__(self):

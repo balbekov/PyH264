@@ -7,31 +7,37 @@ import logging
 class Frame:
     'Binary (VLC) coded collection of multiple slices'
 
-    def __init__(self, parent, new_frame, WIDTH=1280, HEIGHT=720):
+    def __init__(self, parent, new_frame, WIDTH=1280, HEIGHT=720, qp=26, mb_size=16, tb_size=4):
         self.width = WIDTH
         self.height = HEIGHT
         self.slices = []
         self.parent = parent
+        self.qp = qp
+        self.mb_size = mb_size
+        self.tb_size = tb_size
         if new_frame is not None:
             self.load_image(new_frame)
         else:
-            self.slices = [Slice(self, None, WIDTH=WIDTH) for i in range(0, HEIGHT, 16)]
+            self.slices = [Slice(self, None, WIDTH=WIDTH, qp=qp, mb_size=mb_size, tb_size=tb_size) 
+                          for i in range(0, HEIGHT, mb_size)]
 
     '''
     Load a Numpy UINT8 matrix into this frame
-    Using one slice per 16 lines
+    Using one slice per mb_size lines
     '''
     def load_image(self, new_frame):
-        for y in range(0, new_frame.shape[0], 16):
-            self.slices.append(Slice(self, new_frame[y:y+16, 0:new_frame.shape[1]], WIDTH=self.width))
+        for y in range(0, new_frame.shape[0], self.mb_size):
+            self.slices.append(Slice(self, new_frame[y:y+self.mb_size, 0:new_frame.shape[1]], 
+                                     WIDTH=self.width, qp=self.qp, mb_size=self.mb_size, tb_size=self.tb_size))
 
     def get_image(self):
         image = np.uint8(np.empty((self.height, self.width)))
         # Iterate through slice -> macroblock -> transformblock layers
-        # Y coordinate increments by 16 for every slice, and 4 for every transformblock
+        # Y coordinate increments by mb_size for every slice
         for i, slice in enumerate(self.slices):
             for j, mb in enumerate(slice):
-                image[(i*16):(i*16)+16, (j*16):(j*16)+16] = mb.get_image()
+                image[(i*self.mb_size):(i*self.mb_size)+self.mb_size, 
+                      (j*self.mb_size):(j*self.mb_size)+self.mb_size] = mb.get_image()
 
         return image
 
