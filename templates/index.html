@@ -365,15 +365,15 @@
 
         .zoom-lens {
             position: absolute;
-            width: 120px;
-            height: 120px;
-            border: 2px solid var(--accent-cyan);
+            width: 480px;
+            height: 480px;
+            border: 3px solid var(--accent-cyan);
             border-radius: 50%;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.15s ease;
             overflow: hidden;
-            box-shadow: 0 0 20px rgba(34, 211, 238, 0.3), inset 0 0 40px rgba(0,0,0,0.5);
+            box-shadow: 0 0 30px rgba(34, 211, 238, 0.3), inset 0 0 60px rgba(0,0,0,0.5);
             z-index: 10;
         }
 
@@ -384,9 +384,6 @@
             max-height: none;
         }
 
-        .image-container.zoomable:hover .zoom-lens {
-            opacity: 1;
-        }
 
         .image-placeholder {
             color: var(--text-muted);
@@ -998,13 +995,18 @@
 
         // Zoom functionality
         const zoomFactor = 4;
-        const lensSize = 120;
+        const lensSize = 480;
 
         function setupZoom(containerId, imgId, lensId, zoomImgId) {
             const container = document.getElementById(containerId);
             const img = document.getElementById(imgId);
             const lens = document.getElementById(lensId);
             const zoomImg = document.getElementById(zoomImgId);
+
+            container.addEventListener('mouseenter', () => {
+                if (!img.src || img.src === window.location.href) return;
+                lens.style.opacity = '1';
+            });
 
             container.addEventListener('mousemove', (e) => {
                 if (!img.src || img.src === window.location.href) return;
